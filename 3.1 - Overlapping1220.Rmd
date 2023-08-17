@@ -1,0 +1,52 @@
+---
+title: "Untitled"
+author: "Wenting Liu"
+date: "2022-11-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+PE <- read.csv("E:/000-Files/03-work/01-Preeclampsia DNA Methylation Project/05-Preeclampsia DNAm Project/04-Full_Model/1219-1223/pval_PE_sig.csv", header=TRUE)
+
+GA <- read.csv("E:/000-Files/03-work/01-Preeclampsia DNA Methylation Project/05-Preeclampsia DNAm Project/04-Full_Model/1219-1223/pval_GA_sig.csv", header=TRUE)
+
+BMI <- read.csv("E:/000-Files/03-work/01-Preeclampsia DNA Methylation Project/05-Preeclampsia DNAm Project/04-Full_Model/1219-1223/pval_BMI_sig.csv", header=TRUE)
+```
+
+```{r}
+# install.packages("VennDiagram")
+library(VennDiagram)
+```
+
+```{r}
+display_venn <- function(x, ...){
+  library(VennDiagram)
+  grid.newpage()
+  venn_object <- venn.diagram(x, filename = NULL, ...)
+  grid.draw(venn_object)
+}
+```
+
+
+```{r}
+display_venn(
+        x = list(PE$X, GA$X, BMI$X),
+        category.names = c("PE" , "GA", "BMI"),
+        # Circles
+        lwd = 2,
+        lty = 'blank',
+        fill = c("#E69F00", "#56B4E9", "#009E73"),
+        # Numbers
+        cex = .9,
+        fontface = "italic",
+        # Set names
+        cat.cex = 1,
+        cat.fontface = "bold",
+        cat.default.pos = "outer",
+        cat.dist = c(0.055, 0.1, 0.055)
+)
+```
