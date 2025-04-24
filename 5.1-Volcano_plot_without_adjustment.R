@@ -5,23 +5,22 @@ library(dplyr)
 library(ggplot2)
 library(ggrepel)
 
-# Shortcut
+# Shortcut from 1 - Raw data pre-processing.Rmd
 load("/home/liuwent/04-Full_Model/myLoad.Rdata")
-load("/home/liuwent/04-Full_Model/pd.RData")
-load("/home/liuwent/04-Full_Model/myCombat.RData")
 load("/home/liuwent/04-Full_Model/Mvalues.RData")
 
 ## model2: regress only on sample group-----------------------------
 myLoad$pd$Sample_Group = relevel(factor(myLoad$pd$Sample_Group), ref="Controls")
 design0 = model.matrix(~myLoad$pd$Sample_Group)
-fit0 = lmFit(beta2m(myCombat), design0)
+fit0 = lmFit(beta2m(Mvalues), design0)
 fit00 = eBayes(fit0)
 save(fit00, file = "fit00.RData")
 
 ## Get log_2 fold change and p value
-log2fc = fit00$coefficients[,2]
+col_of_interest = "Sample_Group"
+log2fc = fit00$coefficients[,col_of_interest]
 ##pval = p.adjust(fit$p.value[,2], method="bonferroni")
-pval0 = p.adjust(fit00$p.value[,2], "BH")
+pval0 = p.adjust(fit00$p.value[,col_of_interest], "BH")
 length(pval0[pval0<0.05]) # 229,730
 
 cpg <- data.frame(logFC=log2fc, pval=pval0)
@@ -32,7 +31,7 @@ sig_hypo <- rownames(cpg[cpg$logFC<0 & cpg$pval<0.05,])
 # save(sig_hypo, file='sig_hypo.RData')
 length(sig_hypo)
 
-table_fit00 = topTable(fit00, num=Inf, coef=2, adjust.method = "BH")
+table_fit00 = topTable(fit00, num=Inf, coef=col_of_interest, adjust.method = "BH")
 table_fit00$Type = ifelse(table_fit00$logFC>0, "Hyper", "Hypo")
 sum(table_fit00$adj.P.Val<0.05) # 229,730
 
