@@ -1,23 +1,18 @@
-#sov_EOLO data
-library(ggplot2)
-library(EpiDISH)
-library(parallel)
+# Library
 library(dplyr)
-library(carData)
+library(parallel)
+library(ggplot2)
 library(car)
 
-load("/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/03-EOLO_data/pd_EOLO.RData")
-load("/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/03-EOLO_data/beta_EOLO.RData")
+# Data:
+setwd("/nfs/dcmb-lgarmire/xtyang/CordBlood/10-preterm_data")
+load("merged_pd.RData")
+load("merged_batch_corrected_Mvalues.RData")
 
-load("/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/FlowSorted.CordBloodCombined.450k.compTable.rda")
-ref = FlowSorted.CordBloodCombined.450k.compTable
-out<-epidish(beta.m=beta_EOLO, ref.m=ref, method="CP")
+pd = merged_pd%>%dplyr::select("baby_sex","CD8T", "CD4T", "NK", "Bcell", "Mono", "Gran", "nRBC", "GA",  "Sample_Group" )
 
-pd_EOLO$eope = ifelse(pd_EOLO$`group:ch1` == "Early-onset preeclampsia", 1, 0)
-pd = as.data.frame(cbind(out$estF, pd_EOLO))
-pd = pd%>%dplyr::select("group","CD4T",
-                        "CD8T","Bcell","Gran","NK","Mono")
-sovdat = data.frame(t(beta_EOLO))
+sovdat = data.frame(t(Mvalues))
+
 Ftab <- data.frame(Sample_Group = numeric(), stringsAsFactors = FALSE)
 
 for(i in 2:ncol(pd)){
@@ -26,9 +21,17 @@ for(i in 2:ncol(pd)){
 }
 
 calF <- function(probe = probecol){
+  options(contrasts = c("contr.sum", "contr.poly"))
   newdata <- pd
   pdnames <- names(newdata)
   newdata$beta <- probe
+  #use sum contrast for type III ANOVA
+  contrasts_list <- lapply(newdata, function(col) {
+    if (is.factor(col)) return(contr.sum(length(levels(col))))
+    return(NULL)
+  })
+  options(contrasts = c("contr.sum", "contr.poly"))
+  
   formstr <- paste0(pdnames, collapse = ' + ')
   formstr <- paste0('beta ~ ', formstr)
   formstr <- as.formula(formstr)
@@ -44,16 +47,17 @@ calF <- function(probe = probecol){
   return(Ftab)
 }
 
-Ftab <- mclapply(X = sovdat, FUN = calF, mc.cores = 40)
+Ftab <- mclapply(X = sovdat, FUN = calF, mc.cores = 16)
 Ftab <- do.call(rbind, Ftab)
 Fmean <- colMeans(Ftab)
 Fmean <- Fmean[order(-Fmean)]
 Fmean <- data.frame(Factor = names(Fmean), Fstat = as.vector(Fmean), stringsAsFactors = FALSE)
 finalvars <- unique(c('Sample_Group', Fmean$Factor[Fmean$Fstat > 1]))
 
-save(Ftab, Fmean, finalvars, file = "/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/03-EOLO_data/sov_res.RData")
+save(Ftab, Fmean, finalvars, file = "sov_res.RData")
 
-load("/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/03-EOLO_data/sov_res.RData")
+#load("/home/liuwent/08-SOV_Plot/res3.RData")
+
 sovplot <- function(restab = MSSmean, clustername = 'Case', plottype = 'MSS',
                     textsize = 20){
   resmean <- restab
@@ -110,8 +114,8 @@ sovplot <- function(restab = MSSmean, clustername = 'Case', plottype = 'MSS',
   }
 }
 
-pdf("/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/03-EOLO_data/SOV_EOLO_Gervin.pdf")
-sovplot(restab = Fmean, plottype = 'F', textsize = 14)
+pdf("/nfs/dcmb-lgarmire/xtyang/CordBlood/10-preterm_data/sov_w_preterm.pdf")
+sovplot(restab = Fmean, plottype = 'F', textsize = 15)
 dev.off()
 
 Fmean

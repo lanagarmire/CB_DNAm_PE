@@ -1,9 +1,9 @@
-
+# Analysis using data from Ching et al.
 
 # 2. regress only on sample group-----------------------------
 # Data:
 load("/nfs/dcmb-lgarmire/liuwent/13-Travers_data/Trav_pd_all_minfi.RData")
-load("/nfs/dcmb-lgarmire/liuwent/13-Travers_data/m.RData")
+load("/nfs/dcmb-lgarmire/liuwent/13-Travers_data/m.RData")#m values
 load("/nfs/dcmb-lgarmire/liuwent/13-Travers_data/beta.RData")
 
 design0 = model.matrix(~Trav_pd_all_minfi$Sample_Group)
@@ -36,7 +36,7 @@ png(file = "/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/02-Travis_dat
 par(cex.axis = 1.5, cex.lab = 1.5) 
 volcanoplot(fit00, coef=2, col=col_list, highlight=5,
             names=rownames(fit00$coefficients), xlim = c(-4,4))
-# abline(h=-log10(0.05), lty=2, col="red")
+
 abline(v=-1, lty=2, col="grey")
 abline(v=1, lty=2, col="grey")
 text(-1, 5, "x=-1", cex=1.2)
@@ -72,12 +72,8 @@ library(limma)
 library(ggplot2)
 library(tidyverse)
 
-# Shortcut
-load("/home/liuwent/13-Travers_data/Trav_pd.RData")
-load("/home/liuwent/13-Travers_data/Trav_estF.RData")
 
-# fit for all clinical variables by using Trav_estF:
-pd = Trav_pd%>%dplyr::select("Sample_Group", "GAWeek", "MomAge", "BMI", "EthnicMom1")
+pd = Trav_pd_all%>%dplyr::select("Sample_Group", "GAWeek", "MomAge", "BMI", "EthnicMom1")
 pdnames = names(pd)
 formstr <- paste0(pdnames, collapse = ' + ')
 formstr <- paste0('~', formstr)
@@ -110,7 +106,7 @@ dev.off()
 
 ## 3.3 Residual version:
 # fit for all significant confounders except PE by using Trav_estF:
-pd_noPE = Trav_pd%>%dplyr::select("GAWeek", "MomAge", "BMI", "EthnicMom1")
+pd_noPE = Trav_pd_all%>%dplyr::select("GAWeek", "MomAge", "BMI", "EthnicMom1")
 pdnames = names(pd_noPE)
 formstr <- paste0(pdnames, collapse = ' + ')
 formstr <- paste0('~', formstr)
@@ -151,153 +147,8 @@ ggplot(df1_long, aes(Cell_Type, Cell_Type_Proportion_Residuals, fill=Sample_Grou
   theme(text = element_text(size = 15))
 dev.off()
 
-# 4. SOV-------------------------------------------------------------------
-# Library:
-library(shiny)
-library(ggplot2)
-library(parallel)
-library(dplyr)
-library(lumi)
-library(minfi)
-library(RColorBrewer)
-library(MASS)
-library(limma)
-library(ggcorrplot)
-library(carData)
-library(car)
 
-# Data:
-load("/home/liuwent/13-Travers_data/Trav_pd_all.RData")
-load("/home/liuwent/13-Travers_data/Trav_m.RData")
-
-#extract confounders
-pd = Trav_pd_all
-pd = pd%>%dplyr::select("Sample_Group", "GAWeek", "MomAge", "BMI", "EthnicMom1", 
-                        "CD8T", "CD4T", "NK", "Bcell", "Mono", "Gran", "nRBC")
-
-sovdat = data.frame(t(Trav_m))
-
-Ftab <- data.frame(Sample_Group = numeric(), stringsAsFactors = FALSE)
-
-for(i in 2:ncol(pd)){
-  varname <- names(pd)[i]
-  Ftab[varname] <- numeric()
-}
-
-calF <- function(probe = probecol){
-  newdata <- pd
-  pdnames <- names(newdata)
-  newdata$beta <- probe
-  formstr <- paste0(pdnames, collapse = ' + ')
-  formstr <- paste0('beta ~ ', formstr)
-  formstr <- as.formula(formstr)
-  fit <- lm(formstr, data = newdata)
-  aovfit <- Anova(fit, type = 3, singular.ok = TRUE)
-  F <- aovfit$`F value`
-  F <- F[2:(length(F)-1)]
-  names(F) <- pdnames
-  F <- as.data.frame(F, stringsAsFactors = FALSE)
-  F <- as.data.frame(t(F))
-  row.names(F) <- 1
-  Ftab <- rbind(Ftab, F)
-  return(Ftab)
-}
-
-Ftab <- mclapply(X = sovdat, FUN = calF, mc.cores = 40)
-Ftab <- do.call(rbind, Ftab)
-Fmean <- colMeans(Ftab)
-Fmean <- Fmean[order(-Fmean)]
-Fmean <- data.frame(Factor = names(Fmean), Fstat = as.vector(Fmean), stringsAsFactors = FALSE)
-finalvars <- unique(c('Sample_Group', Fmean$Factor[Fmean$Fstat > 1]))
-
-save(Ftab, Fmean, finalvars, file = "/home/liuwent/13-Travers_data/Trav_res.RData")
-
-load("/home/liuwent/13-Travers_data/Trav_res.RData")
-
-sovplot <- function(restab = MSSmean, clustername = 'Case', plottype = 'MSS',
-                    textsize = 20){
-  resmean <- restab
-  samplegroupidx <- match('Sample_Group', resmean$Factor)
-  resmean$Factor[samplegroupidx] <- paste0(clustername, '_Control')
-  if(plottype == 'MSS'){
-    ytitle <- 'Mean Square'
-    resmean <- resmean[order(-resmean$MSSstat),]
-    resmean$Factor <- factor(resmean$Factor, levels = resmean$Factor, ordered = TRUE)
-    p <- ggplot(data = resmean, mapping = aes(x = Factor, y = MSSstat, fill = Factor))
-    print(
-      p + geom_bar(stat = 'identity') +
-        ggtitle('Source of Variance (Type 3 Anova)') +
-        ylab(ytitle) +
-        xlab('') +
-        scale_fill_discrete(guide = FALSE) +
-        theme_bw() +
-        theme(axis.text.x = element_text(angle = 60, hjust = 1, size = textsize)) +
-        theme(axis.text.y = element_text(size = textsize))
-    )
-  }else if(plottype == 'pval'){
-    ytitle <- '-log2(p-val)'
-    resmean <- resmean[order(-resmean$logpval),]
-    resmean$Factor <- factor(resmean$Factor, levels = resmean$Factor, ordered = TRUE)
-    
-    p <- ggplot(data = resmean, mapping = aes(x = Factor, y = logpval, fill = Factor))
-    print(
-      p + geom_bar(stat = 'identity') +
-        ggtitle('Source of Variance (Type 3 Anova)') +
-        ylab(ytitle) +
-        xlab('') +
-        scale_fill_discrete(guide = FALSE) +
-        geom_hline(yintercept = -log2(0.05), color = 'red', size = 1) +
-        theme_bw() +
-        theme(axis.text.x = element_text(angle = 60, hjust = 1, size = textsize)) +
-        theme(axis.text.y = element_text(size = textsize))
-    )
-  }else{
-    ytitle <- 'F statistic'
-    resmean <- resmean[order(-resmean$Fstat),]
-    resmean$Factor <- factor(resmean$Factor, levels = resmean$Factor, ordered = TRUE)
-    p <- ggplot(data = resmean, mapping = aes(x = Factor, y = Fstat, fill = Factor))
-    print(
-      p + geom_bar(stat = 'identity') +
-        ggtitle('Source of Variance (Type 3 Anova)') +
-        ylab(ytitle) +
-        xlab('') +
-        scale_fill_discrete(guide = FALSE) +
-        theme_bw() +
-        theme(axis.text.x = element_text(angle = 60, hjust = 1, size = textsize)) +
-        theme(axis.text.y = element_text(size = textsize))+
-        geom_hline(yintercept=1, linetype="dashed", color = "red")
-    )
-  }
-}
-
-pdf("/home/liuwent/13-Travers_data/04_Trav_sov_plot_for_all.pdf")
-sovplot(restab = Fmean, plottype = 'F', textsize = 7)
-dev.off()
-
-Fmean
-#The variables that are over 1 are the confounding factors you will address.
-
-####
-#Factor     Fstat
-#1    EthnicMom1 37.852856
-#2        MomAge 17.090949
-#3           BMI 14.539063
-#4        GAWeek 11.736083
-#5  Sample_Group  9.409054
-#6          Mono  7.162519
-#7         Bcell  5.040410
-#8          CD8T  3.996467
-#9          nRBC  3.850797
-#10         Gran  3.741364
-#11         CD4T  3.487735
-#12           NK  2.450508
-####
-
-# 5. Adjust for all confounders---------------------------------------------------------------
-load("/nfs/dcmb-lgarmire/liuwent/13-Travers_data/m.RData")
-#load("/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/02-Travis_data/Travis_pd_new.RData")
-
-#m = m[, rownames(pd)]
+# 4. Adjust for all confounders---------------------------------------------------------------
 allConfounders = Trav_pd_all%>%dplyr::select("Sample_Group", "EthnicMom1", "MomAge", "BMI", "GAWeek", "BabySex",  
                                     "Mono", "Bcell", "CD8T", "nRBC", "Gran", "CD4T", )
 

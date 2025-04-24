@@ -1,31 +1,25 @@
-# Library:
-library(dplyr)
-library(shiny)
 library(ggplot2)
 library(parallel)
-library(lumi)
-library(minfi)
-library(RColorBrewer)
-library(MASS)
-library(limma)
-library(ggcorrplot)
-library(carData)
+library(dplyr)
 library(car)
+library(lumi)
 
-# Data:
-load("/home/liuwent/04-Full_Model/pd.RData")
-load("/home/liuwent/04b-cell_type_deconvolution/estF.RData")
+#load myCombat from 1 - Raw data pre-processing.Rmd 
+#load pd_all from 2.0 - cell_type_deconvolution_Gervin.R
+load("/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/01-new_result_Garvin_ref/pd_all.RData")
+load("/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/myCombat.RData")
 
-rownames(pd)=pd$Sample_Name
-sum(rownames(pd)==rownames(estF))
+#convert beta to m values
+myCombat = myCombat[, rownames(pd)]
+myCombat[myCombat == 0] <- 1e-6  # Replace 0 with a small value
+myCombat[myCombat == 1] <- 1 - 1e-6  # Replace 1 with a value slightly below 1
+m = beta2m(myCombat)
 
-#extract confounders
-pd = pd%>%dplyr::select("Sample_Group", "GA", "Age", "Parity", "BMI", "Eth2", "Smoker")
-sovdat = as.data.frame(estF)
+pd = pd%>%dplyr::select("Sample_Group",  "Age", "BMI", "Eth2", "GA", "Parity","Smoker","CD4T",
+                        "CD8T","Bcell","Gran","NK","Mono")#excluded nrbc to avoid perfect collinearity
+pd$Eth2 = as.numeric(as.factor(pd$Eth2))
 
-sum(rownames(pd)==rownames(sovdat))
-
-
+sovdat = data.frame(t(m))
 Ftab <- data.frame(Sample_Group = numeric(), stringsAsFactors = FALSE)
 
 for(i in 2:ncol(pd)){
@@ -37,6 +31,15 @@ calF <- function(probe = probecol){
   newdata <- pd
   pdnames <- names(newdata)
   newdata$beta <- probe
+  
+  #use sum contrast for type III ANOVA
+  contrasts_list <- lapply(newdata, function(col) {
+    if (is.factor(col)) return(contr.sum(length(levels(col))))
+    return(NULL)
+  })
+  options(contrasts = c("contr.sum", "contr.poly"))
+  
+  #design matrix
   formstr <- paste0(pdnames, collapse = ' + ')
   formstr <- paste0('beta ~ ', formstr)
   formstr <- as.formula(formstr)
@@ -52,16 +55,15 @@ calF <- function(probe = probecol){
   return(Ftab)
 }
 
-Ftab <- mclapply(X = sovdat, FUN = calF, mc.cores = 5)
+Ftab <- mclapply(X = sovdat, FUN = calF, mc.cores = 16)
 Ftab <- do.call(rbind, Ftab)
 Fmean <- colMeans(Ftab)
 Fmean <- Fmean[order(-Fmean)]
 Fmean <- data.frame(Factor = names(Fmean), Fstat = as.vector(Fmean), stringsAsFactors = FALSE)
 finalvars <- unique(c('Sample_Group', Fmean$Factor[Fmean$Fstat > 1]))
 
-# save(Ftab, Fmean, finalvars, file = "/home/liuwent/08-SOV_Plot/res_0531.RData")
+save(Ftab, Fmean, finalvars, file = "/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/01-new_result_Garvin_ref/sov_res_0212.RData")
 
-load("/home/liuwent/08-SOV_Plot/res_0531.RData")
 
 sovplot <- function(restab = MSSmean, clustername = 'Case', plottype = 'MSS',
                     textsize = 20){
@@ -119,9 +121,8 @@ sovplot <- function(restab = MSSmean, clustername = 'Case', plottype = 'MSS',
   }
 }
 
-pdf("/home/liuwent/08-SOV_Plot/sov_plot_0531.pdf")
-sovplot(restab = Fmean, plottype = 'F', textsize = 15)
+pdf("/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/01-new_result_Garvin_ref/SOV_Gervin_0212.pdf")
+sovplot(restab = Fmean, plottype = 'F', textsize = 7)
 dev.off()
 
 Fmean
-#The variables that are over 1 are the confounding factors you will address.

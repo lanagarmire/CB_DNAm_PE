@@ -1,19 +1,5 @@
-# R/4.1.2 on server:
-## open:
-source /home/yhdu/anaconda3/bin/activate 
-conda init 
-conda activate r4
-R
-## Quit:
-q() 
-conda deactivate
+# process raw in-house data
 
-# R/4.2.0 on server:
-## Open:
-module load ChAMP
-R
-## Quit:
-q()
 
 # Library:
 ```{r setup, include=FALSE}
@@ -44,6 +30,7 @@ colnames(myLoad$pd)[1]="Sample_Name"
 colnames(myLoad$pd)[13]="GA"
 colnames(myLoad$pd)[14]="Eth2"
 ```
+
 ## Organize ethnicities into bigger categories
 ```{r}
 for (i in 1:nrow(myLoad$pd)){
@@ -60,25 +47,8 @@ for (i in 1:nrow(myLoad$pd)){
 }
 
 table(myLoad$pd$Eth2)
-
-# for (i in 1:nrow(myLoad$pd)){
-#   if(myLoad$pd$Eth2[i] %in% c("American Samoan", "Chamorro", "Micronesian","MicronesianChuukese",
-#                               "MicronesianKosraean", "samoan", "Samoan", "Tongan", "Hawaiian", "Tahitian")){
-#     myLoad$pd$Eth2[i] = "PacificIslander"
-#   }else if(myLoad$pd$Eth2[i] %in% c("Cambodian", "Chinese", "Filipino", "Japanese", "Korean", "Laotian",
-#                                     "Okinawan", "Vietnamese","American Indian")){
-#     myLoad$pd$Eth2[i] = "Asian"
-# 
-#   }else if(myLoad$pd$Eth2[i] %in% c("English", "German", "Hungarian", "Irish", "Italian", "Portuguese",
-#                                     "Scottish","Spanish")){
-#     myLoad$pd$Eth2[i] = "Caucasian"
-#   }else if(myLoad$pd$Eth2[i] %in% c("Mexican","Puerto Rican", "Guatemalan")){
-#     myLoad$pd$Eth2[i] = "Hispanic"
-#   }
-# }
-# 
-# head(myLoad$pd)
 ```
+
 ## Remove others group of Eth2
 ```{r}
 myLoad$pd <- myLoad$pd[which(myLoad$pd$Eth2 != 'Others'), ]
@@ -90,6 +60,7 @@ dim(myLoad$beta)
 BMI <- myLoad$pd[, c("Sample_Group","BMI")]
 write.csv(BMI, file="BMI.csv")
 ```
+
 ## Missing BMI values imputation (use mean of each sample groups to impute):
 ```{r}
 myLoad$pd$BMI[c(45,53)] = c(27.9, 27.9)
@@ -98,6 +69,7 @@ myLoad$pd$BMI[52] = 32.2
 save(myLoad, file='myLoad.RData')
 load("/home/liuwent/04-Full_Model/myLoad.RData")
 ```
+
 ## 1.1 Normalization and remove batch effect
 ```{r}
 #QC
@@ -125,7 +97,8 @@ champ.SVD(beta=myNorm0, pd=myLoad$pd)
 
 #myCombat, Dr. Garmire wanted array and sample plate removed from svd, which can be done with batch name. However, the program will not allow you to remove sample_plate.
 myCombat<-champ.runCombat(beta=myNorm0, pd=myLoad$pd, batchname=c("Slide", "Array"))
-
+myCombat[myCombat == 0] <- 1e-6  # Replace 0 with a small value
+myCombat[myCombat == 1] <- 1 - 1e-6 
 Mvalues<-beta2m(myCombat)
 
 # SVD

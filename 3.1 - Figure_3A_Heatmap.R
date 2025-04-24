@@ -5,7 +5,7 @@ library(ggplot2)
 library(tidyverse)
 library(gplots)
 
-# Data:
+# Data from 1 - Raw data pre-processing.Rmd
 load("/home/liuwent/04-Full_Model/pd.RData")
 load("/home/liuwent/04b-cell_type_deconvolution/estF.RData")
 
@@ -64,14 +64,3 @@ heatmap_plot +
 
 dev.off()
 
-# # Heatmap - ggplot2:
-# hm_data <- estF %>% 
-#   rownames_to_column() %>%
-#   gather(colname, value, -rowname) %>% 
-#   setNames(c("Samples", "Cell_Type_Proportion", "Value"))
-
-# pdf("/home/liuwent/04b-cell_type_deconvolution/Fig_3A_heatmap.pdf")
-# ggplot(data = hm_data, aes(x=Cell_Type_Proportion, y=Samples, fill=Value)) +
-#   geom_tile() + 
-#   scale_fill_gradient2(low="#0000FF", mid="#FFFFFF", high="#FF0000")
-# dev.off()

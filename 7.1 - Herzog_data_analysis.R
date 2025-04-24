@@ -1,81 +1,67 @@
-# Library:
-# library(GEOquery)
-# library(dplyr)
-# library(ggplot2)
-# library(lumi)
-# library(EpiDISH)
-
-# Load PBMC data from NCBI:
-# gset <- getGEO("GSE110828", GSEMatrix =TRUE, getGPL=FALSE)
-# if (length(gset) > 1) idx <- grep("GPL13534", attr(gset, "names")) else idx <- 1
-# gset <- gset[[idx]]
-# 
-# pd_PBMC_450K <- pData(gset)
-# dim(pd_PBMC_450K)   # 157  82
-# save(pd_PBMC_450K, file = "./pd_PBMC_450K.RData")
-# beta_PBMC_450K <- exprs(gset)
-# dim(beta_PBMC_450K)   # 410735    157
-# save(beta_PBMC_450K, file = "./beta_PBMC_450K.RData")
-
-# # Load EOPE&LOPE data from NCBI:
-# gset <- getGEO("GSE103253", GSEMatrix =TRUE, getGPL=FALSE)
-# if (length(gset) > 1) idx <- grep("GSE103253", attr(gset, "names")) else idx <- 1
-# gset <- gset[[idx]]
-# 
-# pd_EOLO_450K <- pData(gset)
-# dim(pd_EOLO_450K)   # 245  33
-# save(pd_EOLO_450K, file = "./pd_EOLO_450K.RData")
-# beta_EOLO_450K <- exprs(gset)
-# dim(beta_EOLO_450K)   # 482750    245
-# save(beta_EOLO_450K, file = "./beta_EOLO_450K.RData")
-
-# Subset cord blood related samples only for the two datasets:
-## PBMC
-# pd_PBMC <- pd_PBMC_450K[pd_PBMC_450K$source_name_ch1 == "CBMC", ]
-# dim(pd_PBMC) # 110  82
-# pd_PBMC$preeclampsia <- ifelse(pd_PBMC$preeclampsia == "Yes", "Case", "Control")
-# save(pd_PBMC, file = "./pd_PBMC.RData")
-# beta_PBMC <- beta_PBMC_450K[, colnames(beta_PBMC_450K) %in% rownames(pd_PBMC)]
-# dim(beta_PBMC) # 410735    110
-# save(beta_PBMC, file = "./beta_PBMC.RData")
-# 
-# ## EOPE&LOPE
-# pd_EOLO <- pd_EOLO_450K[pd_EOLO_450K$tissue == "UC-WBC", ]
-# dim(pd_EOLO) # 88 33
-# save(pd_EOLO, file = "./pd_EOLO.RData")
-# beta_EOLO <- beta_EOLO_450K[, colnames(beta_EOLO_450K) %in% rownames(pd_EOLO)]
-# dim(beta_EOLO) # 482750     88
-# save(beta_EOLO, file = "./beta_EOLO.RData")
-# 
-# ### EOPE&LOPE -- Select preeclampsia related data only
-# pd_EOLO <- pd_EOLO[pd_EOLO$group %in% c("Early-onset preeclampsia", "Late-onset preeclampsia", "Uncomplicated control"), ]
-# dim(pd_EOLO) # 48 33
-# pd_EOLO$group <- ifelse(pd_EOLO$group %in% c("Early-onset preeclampsia", "Late-onset preeclampsia"), "Case", "Control")
-# save(pd_EOLO, file = "./pd_EOLO.RData")
-# beta_EOLO <- beta_EOLO_450K[, colnames(beta_EOLO_450K) %in% rownames(pd_EOLO)]
-# dim(beta_EOLO) # 482750     88
-# save(beta_EOLO, file = "./beta_EOLO.RData")
-
-
-
-# Library:
-library(lumi)
-library(limma)
+Library:
+library(GEOquery)
 library(dplyr)
 library(ggplot2)
-library(ggrepel)
+library(lumi)
+library(EpiDISH)
 
-# Shortcut:
-load("./pd_PBMC.RData")
-load("./beta_PBMC.RData")
-load("./pd_EOLO.RData")
-load("./beta_EOLO.RData")
+#Load PBMC data from NCBI:
+gset <- getGEO("GSE110828", GSEMatrix =TRUE, getGPL=FALSE)
+if (length(gset) > 1) idx <- grep("GPL13534", attr(gset, "names")) else idx <- 1
+gset <- gset[[idx]]
+#
+pd_PBMC_450K <- pData(gset)
+dim(pd_PBMC_450K)   # 157  82
+save(pd_PBMC_450K, file = "./pd_PBMC_450K.RData")
+beta_PBMC_450K <- exprs(gset)
+dim(beta_PBMC_450K)   # 410735    157
+save(beta_PBMC_450K, file = "./beta_PBMC_450K.RData")
+
+# # Load EOPE&LOPE data from NCBI:
+gset <- getGEO("GSE103253", GSEMatrix =TRUE, getGPL=FALSE)
+if (length(gset) > 1) idx <- grep("GSE103253", attr(gset, "names")) else idx <- 1
+gset <- gset[[idx]]
+#
+pd_EOLO_450K <- pData(gset)
+dim(pd_EOLO_450K)   #245  33
+save(pd_EOLO_450K, file = "./pd_EOLO_450K.RData")
+beta_EOLO_450K <- exprs(gset)
+dim(beta_EOLO_450K)   # 482750    245
+save(beta_EOLO_450K, file = "./beta_EOLO_450K.RData")
+
+#Subset cord blood related samples only for the two datasets:
+# PBMC
+pd_PBMC <- pd_PBMC_450K[pd_PBMC_450K$source_name_ch1 == "CBMC", ]
+dim(pd_PBMC) # 110  82
+pd_PBMC$preeclampsia <- ifelse(pd_PBMC$preeclampsia == "Yes", "Case", "Control")
+save(pd_PBMC, file = "./pd_PBMC.RData")
+beta_PBMC <- beta_PBMC_450K[, colnames(beta_PBMC_450K) %in% rownames(pd_PBMC)]
+dim(beta_PBMC) # 410735    110
+save(beta_PBMC, file = "./beta_PBMC.RData")
+
+## EOPE&LOPE
+pd_EOLO <- pd_EOLO_450K[pd_EOLO_450K$tissue == "UC-WBC", ]
+dim(pd_EOLO) # 88 33
+save(pd_EOLO, file = "./pd_EOLO.RData")
+beta_EOLO <- beta_EOLO_450K[, colnames(beta_EOLO_450K) %in% rownames(pd_EOLO)]
+dim(beta_EOLO) # 482750     88
+save(beta_EOLO, file = "./beta_EOLO.RData")
+
+### EOPE&LOPE -- Select preeclampsia related data only
+pd_EOLO <- pd_EOLO[pd_EOLO$group %in% c("Early-onset preeclampsia", "Late-onset preeclampsia", "Uncomplicated control"), ]
+dim(pd_EOLO) # 48 33
+pd_EOLO$group <- ifelse(pd_EOLO$group %in% c("Early-onset preeclampsia", "Late-onset preeclampsia"), "Case", "Control")
+save(pd_EOLO, file = "./pd_EOLO.RData")
+beta_EOLO <- beta_EOLO_450K[, colnames(beta_EOLO_450K) %in% rownames(pd_EOLO)]
+dim(beta_EOLO) # 482750     88
+save(beta_EOLO, file = "./beta_EOLO.RData")
+
 
 # Volcano plot without adjustment:
 ## PBMC:regress only on sample group-----------------------------
 pd_PBMC$preeclampsia = relevel(factor(pd_PBMC$preeclampsia), ref="Control")
 design0 = model.matrix(~pd_PBMC$preeclampsia)
-fit0 = lmFit(beta2m(beta_PBMC), design0)
+fit0 = lmFit(beta2m(beta_PBMC), design0)#use Mvalues
 fit00 = eBayes(fit0)
 # save(fit00, file = "fit00.RData")
 
@@ -172,8 +158,6 @@ library(reshape2)
 library(ggpubr)
 library(ggsignif)
 
-load("./pd_EOLO.RData")
-load("./beta_EOLO.RData")
 #load("/home/liuwent/04b-cell_type_deconvolution/newnewSetofMarkers_final.RData")
 ref = FlowSorted.CordBloodCombined.450k.compTable
 out<-epidish(beta.m=beta_EOLO, ref.m=as.matrix(ref), method="CP")
@@ -183,24 +167,13 @@ pd_EOLO = data.frame(cbind(out$estF, pd_EOLO))
 
 ### Volcano plot with adjustment (for cell types) using Gervin ref
 # Library:
-library(lumi)
-library(limma)
-library(dplyr)
-library(ggplot2)
-library(ggrepel)
 
 allConfounders = pd_EOLO[,c("group", colnames(pd_EOLO)[1:7])]
-# ind <- sapply(allConfounders, is.numeric)
-# #scale numerical variables
-# f = function(x){scale(x, center = FALSE)}
-# allConfounders[ind] <- lapply(allConfounders[ind],f)
 formula = paste0(names(allConfounders), collapse = ' + ')
 formula = paste0("~", formula)
 formula = formula(formula)
 #design matrix
 design2 = model.matrix(formula, data = allConfounders)
-#???#default setting control = 1, need to set case = 1???#
-# design2[,2] = 1-design2[,2]
 colnames(design2)[2] = "Cases"
 design2[,2] = 1-design2[,2]
 #fit linear model

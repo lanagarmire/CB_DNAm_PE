@@ -29,6 +29,7 @@ for (i in 1:nrow(estF_nogran)){
 
 # Scatterplot for GA and each cell types:
 ################################################################################
+#code fore supplementary figure 4
 ## Scatterplot for GA and each cell types (Grouped):
 data <- data.frame(cbind(pd$Sample_Group, pd$GA, estF))
 names(data)[names(data) == 'V1'] <- 'Sample_Group'
@@ -119,6 +120,8 @@ dev.off()
 model_nRBC <- lm(data = data, nRBC~as.factor(data$Sample_Group)+as.numeric(data$GA)+Sample_Group*GA)
 summary(model_nRBC)
 
+
+# code for figure 4
 ## Scatterplot for GA and each cell types (Ungrouped):
 data <- data.frame(cbind(pd$GA, estF))
 names(data)[names(data) == 'V1'] <- 'GA'
@@ -195,62 +198,62 @@ dev.off()
 
 # Scatterplot for GA and each cell types (Residual Version):
 ################################################################################
-data <- data.frame(cbind(pd$Sample_Group, pd$GA, t(Residuals)))
-names(data)[names(data) == 'V1'] <- 'Sample_Group'
-names(data)[names(data) == 'V2'] <- 'GA'
-
-pdf("/home/liuwent/04b-cell_type_deconvolution/GA_Bcell_scatterplot.pdf")
-ggplot(data = data, aes(x = GA, y = as.numeric(Bcell), color=Sample_Group)) + 
-  geom_point() +
-  geom_smooth(aes(group=Sample_Group), method='lm') +
-  scale_y_continuous(breaks = scales::breaks_extended(n = 5)) +
-  labs(x = "GA", y = "Bcell")
-dev.off()
-
-pdf("/home/liuwent/04b-cell_type_deconvolution/GA_CD4T_scatterplot.pdf")
-ggplot(data = data, aes(x = GA, y = as.numeric(CD4T), color=Sample_Group)) + 
-  geom_point() +
-  geom_smooth(aes(group=Sample_Group), method='lm') +
-  scale_y_continuous(breaks = scales::breaks_extended(n = 5)) +
-  labs(x = "GA", y = "CD4T")
-dev.off()
-
-pdf("/home/liuwent/04b-cell_type_deconvolution/GA_CD8T_scatterplot.pdf")
-ggplot(data = data, aes(x = GA, y = as.numeric(CD8T), color=Sample_Group)) + 
-  geom_point() +
-  geom_smooth(aes(group=Sample_Group), method='lm') +
-  scale_y_continuous(breaks = scales::breaks_extended(n = 5)) +
-  labs(x = "GA", y = "CD8T")
-dev.off()
-
-pdf("/home/liuwent/04b-cell_type_deconvolution/GA_Gran_scatterplot.pdf")
-ggplot(data = data, aes(x = GA, y = as.numeric(Gran), color=Sample_Group)) + 
-  geom_point() +
-  geom_smooth(aes(group=Sample_Group), method='lm') +
-  scale_y_continuous(breaks = scales::breaks_extended(n = 5)) +
-  labs(x = "GA", y = "Gran")
-dev.off()
-
-pdf("/home/liuwent/04b-cell_type_deconvolution/GA_Mono_scatterplot.pdf")
-ggplot(data = data, aes(x = GA, y = as.numeric(Mono), color=Sample_Group)) + 
-  geom_point() +
-  geom_smooth(aes(group=Sample_Group), method='lm') +
-  scale_y_continuous(breaks = scales::breaks_extended(n = 5)) +
-  labs(x = "GA", y = "Mono")
-dev.off()
-
-pdf("/home/liuwent/04b-cell_type_deconvolution/GA_NK_scatterplot.pdf")
-ggplot(data = data, aes(x = GA, y = as.numeric(NK), color=Sample_Group)) + 
-  geom_point() +
-  geom_smooth(aes(group=Sample_Group), method='lm') +
-  scale_y_continuous(breaks = scales::breaks_extended(n = 5)) +
-  labs(x = "GA", y = "NK")
-dev.off()
-
-pdf("/home/liuwent/04b-cell_type_deconvolution/GA_nRBC_scatterplot.pdf")
-ggplot(data = data, aes(x = GA, y = as.numeric(nRBC), color=Sample_Group)) + 
-  geom_point() +
-  geom_smooth(aes(group=Sample_Group), method='lm') +
-  scale_y_continuous(breaks = scales::breaks_extended(n = 5)) +
-  labs(x = "GA", y = "nRBC")
-dev.off()
+# data <- data.frame(cbind(pd$Sample_Group, pd$GA, t(Residuals)))
+# names(data)[names(data) == 'V1'] <- 'Sample_Group'
+# names(data)[names(data) == 'V2'] <- 'GA'
+# 
+# pdf("/home/liuwent/04b-cell_type_deconvolution/GA_Bcell_scatterplot.pdf")
+# ggplot(data = data, aes(x = GA, y = as.numeric(Bcell), color=Sample_Group)) + 
+#   geom_point() +
+#   geom_smooth(aes(group=Sample_Group), method='lm') +
+#   scale_y_continuous(breaks = scales::breaks_extended(n = 5)) +
+#   labs(x = "GA", y = "Bcell")
+# dev.off()
+# 
+# pdf("/home/liuwent/04b-cell_type_deconvolution/GA_CD4T_scatterplot.pdf")
+# ggplot(data = data, aes(x = GA, y = as.numeric(CD4T), color=Sample_Group)) + 
+#   geom_point() +
+#   geom_smooth(aes(group=Sample_Group), method='lm') +
+#   scale_y_continuous(breaks = scales::breaks_extended(n = 5)) +
+#   labs(x = "GA", y = "CD4T")
+# dev.off()
+# 
+# pdf("/home/liuwent/04b-cell_type_deconvolution/GA_CD8T_scatterplot.pdf")
+# ggplot(data = data, aes(x = GA, y = as.numeric(CD8T), color=Sample_Group)) + 
+#   geom_point() +
+#   geom_smooth(aes(group=Sample_Group), method='lm') +
+#   scale_y_continuous(breaks = scales::breaks_extended(n = 5)) +
+#   labs(x = "GA", y = "CD8T")
+# dev.off()
+# 
+# pdf("/home/liuwent/04b-cell_type_deconvolution/GA_Gran_scatterplot.pdf")
+# ggplot(data = data, aes(x = GA, y = as.numeric(Gran), color=Sample_Group)) + 
+#   geom_point() +
+#   geom_smooth(aes(group=Sample_Group), method='lm') +
+#   scale_y_continuous(breaks = scales::breaks_extended(n = 5)) +
+#   labs(x = "GA", y = "Gran")
+# dev.off()
+# 
+# pdf("/home/liuwent/04b-cell_type_deconvolution/GA_Mono_scatterplot.pdf")
+# ggplot(data = data, aes(x = GA, y = as.numeric(Mono), color=Sample_Group)) + 
+#   geom_point() +
+#   geom_smooth(aes(group=Sample_Group), method='lm') +
+#   scale_y_continuous(breaks = scales::breaks_extended(n = 5)) +
+#   labs(x = "GA", y = "Mono")
+# dev.off()
+# 
+# pdf("/home/liuwent/04b-cell_type_deconvolution/GA_NK_scatterplot.pdf")
+# ggplot(data = data, aes(x = GA, y = as.numeric(NK), color=Sample_Group)) + 
+#   geom_point() +
+#   geom_smooth(aes(group=Sample_Group), method='lm') +
+#   scale_y_continuous(breaks = scales::breaks_extended(n = 5)) +
+#   labs(x = "GA", y = "NK")
+# dev.off()
+# 
+# pdf("/home/liuwent/04b-cell_type_deconvolution/GA_nRBC_scatterplot.pdf")
+# ggplot(data = data, aes(x = GA, y = as.numeric(nRBC), color=Sample_Group)) + 
+#   geom_point() +
+#   geom_smooth(aes(group=Sample_Group), method='lm') +
+#   scale_y_continuous(breaks = scales::breaks_extended(n = 5)) +
+#   labs(x = "GA", y = "nRBC")
+# dev.off()

@@ -5,35 +5,23 @@ library(dplyr)
 library(ggplot2)
 library(ggrepel)
 
-load("/nfs/dcmb-lgarmire/liuwent/04-Full_Model/pd.RData")
-load("/nfs/dcmb-lgarmire/liuwent/04-Full_Model/myCombat.RData")
+#load from 2.0 - cell_type_deconvolution_Gervin.R
+load("/nfs/dcmb-lgarmire/liuwent/04-Full_Model/pd_all.RData")
+# Shortcut from 1 - Raw data pre-processing.Rmd
 load("/nfs/dcmb-lgarmire/liuwent/04-Full_Model/Mvalues.RData")
 
-
-#cell type deconvolution
-load("/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/FlowSorted.CordBloodCombined.450k.compTable.rda")
-ref = FlowSorted.CordBloodCombined.450k.compTable
-out<-epidish(beta.m=myCombat, ref.m=as.matrix(ref), method="CP")
-count <- out$estF
-pd = data.frame(cbind(out$estF, pd))
-save(pd, file = "pd_all.RData")
+#load clinical covariate and estimated cell proportions
 allConfounders = pd%>%dplyr::select("Sample_Group", "GA", "Age", "Parity", "Eth2", 
-                                    "CD8T", "CD4T", "NK", "Bcell", "Mono", "Gran", "nRBC")
+                                    "CD8T", "CD4T", "NK", "Bcell", "Mono", "Gran", "nRBC", "Smoker")
 
-# ind <- sapply(allConfounders, is.numeric)
-# #scale numerical variables
-# f = function(x){scale(x, center = FALSE)}
-# allConfounders[ind] <- lapply(allConfounders[ind],f)
 formula = paste0(names(allConfounders), collapse = ' + ')
 formula = paste0("~", formula)
 formula = formula(formula)
 #design matrix
 design2 = model.matrix(formula, data = allConfounders)
 #???#default setting control = 1, need to set case = 1???#
-# design2[,2] = 1-design2[,2]
 colnames(design2)[2] = "Cases"
 #fit linear model
-# fitConfounders = lmFit(Mvalues[, which(!is.na(allConfounders$BMI))], design2)
 fitConfounders = lmFit(Mvalues, design2)
 fitConfounders = eBayes(fitConfounders)
 save(fitConfounders, file = "fitConfounders_Garvin.RData")
@@ -46,7 +34,8 @@ nonsigg.limma <- subset(allg.limma, adj.P.Val >= 0.05)
 dim(sigg.limma)[1]#0
 
 # Make a volcano plot (label DMP with different colors)
-pval2 = p.adjust(fitConfounders$p.value[,2], method = "fdr")
+col_of_interest = "Cases"
+pval2 = p.adjust(fitConfounders$p.value[,col_of_interest], method = "fdr")
 col_list2 = sapply(seq(1, dim(fitConfounders$coefficients)[1]), function(i) {
   if (pval2[i]<0.05) {return("red")}
   else {return("black")} })
