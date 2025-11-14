@@ -1,25 +1,33 @@
+# Library:
 library(ggplot2)
+library(EpiDISH)
 library(parallel)
 library(dplyr)
 library(car)
 library(lumi)
 
-#load myCombat from 1 - Raw data pre-processing.Rmd 
-#load pd_all from 2.0 - cell_type_deconvolution_Gervin.R
-load("/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/01-new_result_Garvin_ref/pd_all.RData")
-load("/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/myCombat.RData")
+load("/nfs/dcmb-lgarmire/liuwent/13-Travers_data/Trav_pd_all_minfi.RData")
+load("/nfs/dcmb-lgarmire//liuwent/13-Travers_data/myNorm2.RData")
 
-#convert beta to m values
-myCombat = myCombat[, rownames(pd)]
-myCombat[myCombat == 0] <- 1e-6  # Replace 0 with a small value
-myCombat[myCombat == 1] <- 1 - 1e-6  # Replace 1 with a value slightly below 1
-m = beta2m(myCombat)
+m = beta2m(myNorm2)
 
-pd = pd%>%dplyr::select("Sample_Group",  "Age", "BMI", "Eth2", "GA", "Parity","Smoker","CD4T",
-                        "CD8T","Bcell","Gran","NK","Mono")#excluded nrbc to avoid perfect collinearity
-pd$Eth2 = as.numeric(as.factor(pd$Eth2))
+#cell type deconvolution using Gervin's reference
+load("/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/FlowSorted.CordBloodCombined.450k.compTable.rda")
+ref = FlowSorted.CordBloodCombined.450k.compTable
+out<-epidish(beta.m=beta, ref.m=ref, method="CP")
+out$estF[out$estF<0]=0
+
+#extract confounders
+pd = Trav_pd_all_minfi
+pd = pd%>%dplyr::select("Sample_Group",  "MomAge", "BMI", "EthnicMom1", "GAWeek", "BabySex")
+pd = as.data.frame(cbind(pd, out$estF))
+pd = pd%>%select(-nRBC)
+#pd$Sample_Group = as.numeric(pd$Sample_Group)
+pd$EthnicMom1 = as.factor(pd$EthnicMom1)
+pd$BabySex = as.factor(pd$BabySex)
 
 sovdat = data.frame(t(m))
+
 Ftab <- data.frame(Sample_Group = numeric(), stringsAsFactors = FALSE)
 
 for(i in 2:ncol(pd)){
@@ -28,18 +36,18 @@ for(i in 2:ncol(pd)){
 }
 
 calF <- function(probe = probecol){
+  # Ensure sum contrasts for categorical variables
   newdata <- pd
   pdnames <- names(newdata)
-  newdata$beta <- probe
   
-  #use sum contrast for type III ANOVA
   contrasts_list <- lapply(newdata, function(col) {
     if (is.factor(col)) return(contr.sum(length(levels(col))))
     return(NULL)
   })
   options(contrasts = c("contr.sum", "contr.poly"))
   
-  #design matrix
+  
+  newdata$beta <- probe
   formstr <- paste0(pdnames, collapse = ' + ')
   formstr <- paste0('beta ~ ', formstr)
   formstr <- as.formula(formstr)
@@ -55,6 +63,7 @@ calF <- function(probe = probecol){
   return(Ftab)
 }
 
+
 Ftab <- mclapply(X = sovdat, FUN = calF, mc.cores = 16)
 Ftab <- do.call(rbind, Ftab)
 Fmean <- colMeans(Ftab)
@@ -62,8 +71,9 @@ Fmean <- Fmean[order(-Fmean)]
 Fmean <- data.frame(Factor = names(Fmean), Fstat = as.vector(Fmean), stringsAsFactors = FALSE)
 finalvars <- unique(c('Sample_Group', Fmean$Factor[Fmean$Fstat > 1]))
 
-save(Ftab, Fmean, finalvars, file = "/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/01-new_result_Garvin_ref/sov_res_0212.RData")
+save(Ftab, Fmean, finalvars, file = "/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/02-Travis_data/sov_res_m.RData")
 
+load("/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/02-Travis_data/sov_res_m.RData")
 
 sovplot <- function(restab = MSSmean, clustername = 'Case', plottype = 'MSS',
                     textsize = 20){
@@ -74,7 +84,7 @@ sovplot <- function(restab = MSSmean, clustername = 'Case', plottype = 'MSS',
     ytitle <- 'Mean Square'
     resmean <- resmean[order(-resmean$MSSstat),]
     resmean$Factor <- factor(resmean$Factor, levels = resmean$Factor, ordered = TRUE)
-    p <- ggplot(data = resmean, mapping = aes(x = Factor, y = MSSstat, fill = Factor))
+    p <- ggplot(data = resmean, mapping = aes(x = Factor, y = MSSstat, fill = 'red'))
     print(
       p + geom_bar(stat = 'identity') +
         ggtitle('Source of Variance (Type 3 Anova)') +
@@ -90,7 +100,7 @@ sovplot <- function(restab = MSSmean, clustername = 'Case', plottype = 'MSS',
     resmean <- resmean[order(-resmean$logpval),]
     resmean$Factor <- factor(resmean$Factor, levels = resmean$Factor, ordered = TRUE)
     
-    p <- ggplot(data = resmean, mapping = aes(x = Factor, y = logpval, fill = Factor))
+    p <- ggplot(data = resmean, mapping = aes(x = Factor, y = logpval, fill = 'red'))
     print(
       p + geom_bar(stat = 'identity') +
         ggtitle('Source of Variance (Type 3 Anova)') +
@@ -106,7 +116,7 @@ sovplot <- function(restab = MSSmean, clustername = 'Case', plottype = 'MSS',
     ytitle <- 'F statistic'
     resmean <- resmean[order(-resmean$Fstat),]
     resmean$Factor <- factor(resmean$Factor, levels = resmean$Factor, ordered = TRUE)
-    p <- ggplot(data = resmean, mapping = aes(x = Factor, y = Fstat, fill = Factor))
+    p <- ggplot(data = resmean, mapping = aes(x = Factor, y = Fstat, fill = 'red'))
     print(
       p + geom_bar(stat = 'identity') +
         ggtitle('Source of Variance (Type 3 Anova)') +
@@ -121,8 +131,9 @@ sovplot <- function(restab = MSSmean, clustername = 'Case', plottype = 'MSS',
   }
 }
 
-pdf("/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/01-new_result_Garvin_ref/SOV_Gervin_0212.pdf")
-sovplot(restab = Fmean, plottype = 'F', textsize = 7)
+pdf("/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/02-Travis_data/SOV_Travis_Gervin_red.pdf")
+sovplot(restab = Fmean, plottype = 'F', textsize = 14)
 dev.off()
 
 Fmean
+#The variables that are over 1 are the confounding factors you will address.
