@@ -1,18 +1,30 @@
-# Library
-library(dplyr)
-library(parallel)
+###################################
+#Source of Variance on Herzog data
+###################################
 library(ggplot2)
+library(EpiDISH)
+library(parallel)
+library(dplyr)
+library(carData)
 library(car)
+library(lumi)
 
-# Data:
-setwd("/nfs/dcmb-lgarmire/xtyang/CordBlood/10-preterm_data")
-load("merged_pd.RData")
-load("merged_batch_corrected_Mvalues.RData")
+load("/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/03-EOLO_data/pd_EOLO.RData")
+load("/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/03-EOLO_data/beta_EOLO.RData")
+load("/nfs/dcmb-lgarmire/xtyang/CordBlood/multi_hit_new_450k.RData") # load multi-hit probe annotation from Zhou et al.
+beta_EOLO = beta_EOLO[!rownames(beta_EOLO)%in%multi_hit_new_450k$probeID,]
 
-pd = merged_pd%>%dplyr::select("baby_sex","CD8T", "CD4T", "NK", "Bcell", "Mono", "Gran", "nRBC", "GA",  "Sample_Group" )
+load("/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/FlowSorted.CordBloodCombined.450k.compTable.rda")
+ref = FlowSorted.CordBloodCombined.450k.compTable
+out<-epidish(beta.m=beta_EOLO, ref.m=ref, method="CP")
 
-sovdat = data.frame(t(Mvalues))
+pd_EOLO$eope = ifelse(pd_EOLO$`group:ch1` == "Early-onset preeclampsia", 1, 0)
+pd = as.data.frame(cbind(out$estF, pd_EOLO))
+pd = pd%>%dplyr::select("group","CD4T",
+                        "CD8T","Bcell","Gran","NK","Mono")
 
+m = beta2m(beta_EOLO)
+sovdat = data.frame(t(m))
 Ftab <- data.frame(Sample_Group = numeric(), stringsAsFactors = FALSE)
 
 for(i in 2:ncol(pd)){
@@ -21,17 +33,13 @@ for(i in 2:ncol(pd)){
 }
 
 calF <- function(probe = probecol){
-  options(contrasts = c("contr.sum", "contr.poly"))
   newdata <- pd
   pdnames <- names(newdata)
   newdata$beta <- probe
-  #use sum contrast for type III ANOVA
   contrasts_list <- lapply(newdata, function(col) {
     if (is.factor(col)) return(contr.sum(length(levels(col))))
     return(NULL)
   })
-  options(contrasts = c("contr.sum", "contr.poly"))
-  
   formstr <- paste0(pdnames, collapse = ' + ')
   formstr <- paste0('beta ~ ', formstr)
   formstr <- as.formula(formstr)
@@ -54,10 +62,9 @@ Fmean <- Fmean[order(-Fmean)]
 Fmean <- data.frame(Factor = names(Fmean), Fstat = as.vector(Fmean), stringsAsFactors = FALSE)
 finalvars <- unique(c('Sample_Group', Fmean$Factor[Fmean$Fstat > 1]))
 
-save(Ftab, Fmean, finalvars, file = "sov_res.RData")
+save(Ftab, Fmean, finalvars, file = "/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/03-EOLO_data/sov_res_m.RData")
 
-#load("/home/liuwent/08-SOV_Plot/res3.RData")
-
+load("/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/03-EOLO_data/sov_res_m.RData")
 sovplot <- function(restab = MSSmean, clustername = 'Case', plottype = 'MSS',
                     textsize = 20){
   resmean <- restab
@@ -67,7 +74,7 @@ sovplot <- function(restab = MSSmean, clustername = 'Case', plottype = 'MSS',
     ytitle <- 'Mean Square'
     resmean <- resmean[order(-resmean$MSSstat),]
     resmean$Factor <- factor(resmean$Factor, levels = resmean$Factor, ordered = TRUE)
-    p <- ggplot(data = resmean, mapping = aes(x = Factor, y = MSSstat, fill = Factor))
+    p <- ggplot(data = resmean, mapping = aes(x = Factor, y = MSSstat, fill = 'red'))
     print(
       p + geom_bar(stat = 'identity') +
         ggtitle('Source of Variance (Type 3 Anova)') +
@@ -83,7 +90,7 @@ sovplot <- function(restab = MSSmean, clustername = 'Case', plottype = 'MSS',
     resmean <- resmean[order(-resmean$logpval),]
     resmean$Factor <- factor(resmean$Factor, levels = resmean$Factor, ordered = TRUE)
     
-    p <- ggplot(data = resmean, mapping = aes(x = Factor, y = logpval, fill = Factor))
+    p <- ggplot(data = resmean, mapping = aes(x = Factor, y = logpval, fill = 'red'))
     print(
       p + geom_bar(stat = 'identity') +
         ggtitle('Source of Variance (Type 3 Anova)') +
@@ -99,7 +106,7 @@ sovplot <- function(restab = MSSmean, clustername = 'Case', plottype = 'MSS',
     ytitle <- 'F statistic'
     resmean <- resmean[order(-resmean$Fstat),]
     resmean$Factor <- factor(resmean$Factor, levels = resmean$Factor, ordered = TRUE)
-    p <- ggplot(data = resmean, mapping = aes(x = Factor, y = Fstat, fill = Factor))
+    p <- ggplot(data = resmean, mapping = aes(x = Factor, y = Fstat, fill = 'red'))
     print(
       p + geom_bar(stat = 'identity') +
         ggtitle('Source of Variance (Type 3 Anova)') +
@@ -114,8 +121,8 @@ sovplot <- function(restab = MSSmean, clustername = 'Case', plottype = 'MSS',
   }
 }
 
-pdf("/nfs/dcmb-lgarmire/xtyang/CordBlood/10-preterm_data/sov_w_preterm.pdf")
-sovplot(restab = Fmean, plottype = 'F', textsize = 15)
+pdf("/nfs/dcmb-lgarmire/xtyang/CordBlood/03-wenting_results/03-EOLO_data/SOV_EOLO_Gervin_red.pdf")
+sovplot(restab = Fmean, plottype = 'F', textsize = 14)
 dev.off()
 
 Fmean
